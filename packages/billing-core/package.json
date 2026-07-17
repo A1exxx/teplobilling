@@ -1,0 +1,21 @@
+{
+  "name": "@teplobilling/billing-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Чистое расчетное ядро начислений ЖКХ (ПП №354): формулы, пени, перерасчеты, QR ГОСТ Р 56042-2014",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "decimal.js": "^10.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

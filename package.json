@@ -1,0 +1,19 @@
+{
+  "name": "teplobilling",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Теплобиллинг — начисления ЖКХ (отопление + ГВС) для МУП/РСО по ПП РФ №354",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.13.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @teplobilling/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test:e2e": "playwright test"
+  }
+}

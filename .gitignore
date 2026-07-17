@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+*.local
+.env
+.env.*
+.DS_Store
+Thumbs.db
+
+# playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# worktrees /dev
+.claude/worktrees/
