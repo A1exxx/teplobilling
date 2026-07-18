@@ -15,6 +15,13 @@
       "when": 1784335302298,
       "tag": "0001_lonely_living_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784337036811,
+      "tag": "0002_black_unus",
+      "breakpoints": true
     }
   ]
 }

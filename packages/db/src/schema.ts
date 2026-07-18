@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+  boolean,
   date,
   integer,
   jsonb,
@@ -238,6 +239,59 @@ export const tariff = pgTable('tariff', {
   docRef: text('doc_ref'),
   validFrom: date('valid_from').notNull(),
   validTo: date('valid_to'),
+})
+
+export const calcRunStatus = pgEnum('calc_run_status', ['running', 'done', 'failed'])
+export const accrualLineKind = pgEnum('accrual_line_kind', ['accrual', 'uplift', 'vat'])
+
+export const calcRun = pgTable('calc_run', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenant.id),
+  periodId: uuid('period_id').notNull().references(() => billingPeriod.id),
+  status: calcRunStatus('status').notNull().default('running'),
+  accountsTotal: integer('accounts_total').notNull().default(0),
+  accountsCalculated: integer('accounts_calculated').notNull().default(0),
+  errors: jsonb('errors').notNull().default(sql`'[]'::jsonb`),
+  engineVersion: text('engine_version').notNull().default('v1'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+})
+
+export const accrual = pgTable(
+  'accrual',
+  {
+    id: id(),
+    tenantId: uuid('tenant_id').notNull().references(() => tenant.id),
+    accountId: uuid('account_id').notNull().references(() => account.id),
+    periodId: uuid('period_id').notNull().references(() => billingPeriod.id),
+    calcRunId: uuid('calc_run_id').notNull().references(() => calcRun.id),
+    docType: text('doc_type').notNull().default('regular'),
+    totalAmount: numeric('total_amount', { precision: 14, scale: 2 }).notNull(),
+    isCurrent: boolean('is_current').notNull().default(true),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex('accrual_current_per_period')
+      .on(table.accountId, table.periodId, table.docType)
+      .where(sql`is_current`),
+  ],
+)
+
+export const accrualLine = pgTable('accrual_line', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenant.id),
+  accrualId: uuid('accrual_id').notNull().references(() => accrual.id),
+  service: serviceCode('service').notNull(),
+  component: tariffComponent('component').notNull(),
+  method: text('method').notNull(),
+  lineKind: accrualLineKind('line_kind').notNull().default('accrual'),
+  dateFrom: date('date_from').notNull(),
+  dateTo: date('date_to').notNull(),
+  volume: numeric('volume', { precision: 14, scale: 6 }).notNull(),
+  unit: text('unit').notNull(),
+  rate: numeric('rate', { precision: 12, scale: 4 }).notNull(),
+  amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+  trace: jsonb('trace').notNull().default(sql`'[]'::jsonb`),
 })
 
 export const norm = pgTable('norm', {
