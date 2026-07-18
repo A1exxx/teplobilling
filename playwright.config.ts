@@ -4,6 +4,9 @@ export default defineConfig({
   testDir: 'tests/e2e',
   reporter: [['list'], ['html', { open: 'never' }]],
   retries: process.env['CI'] ? 1 : 0,
+  // Каждый тест поднимает PGlite (WASM) и гоняет расчет 170 ЛС — параллельные
+  // воркеры дерутся за CPU и флейкают; серийный прогон стабилен.
+  workers: 1,
   use: {
     baseURL: 'http://localhost:5199/teplobilling/',
     trace: 'retain-on-failure',

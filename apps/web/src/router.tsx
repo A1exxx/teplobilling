@@ -3,6 +3,9 @@ import { AppLayout } from './layout/AppLayout'
 import { AccountCardPage } from './pages/AccountCardPage'
 import { AccountsPage } from './pages/AccountsPage'
 import { BuildingsPage } from './pages/BuildingsPage'
+import { DebtorsPage } from './pages/DebtorsPage'
+import { DocumentsPage } from './pages/DocumentsPage'
+import { PaymentsPage } from './pages/PaymentsPage'
 import { PeriodMonitor } from './pages/PeriodMonitor'
 import { ReadingsPage } from './pages/ReadingsPage'
 import { ReceiptPage } from './pages/ReceiptPage'
@@ -21,26 +24,8 @@ export const router = createHashRouter([
       { path: 'buildings', element: <BuildingsPage /> },
       { path: 'tariffs', element: <TariffsPage /> },
       { path: 'readings', element: <ReadingsPage /> },
-      {
-        path: 'payments',
-        element: (
-          <StubPage
-            title="Платежи"
-            phase="Ф5"
-            details="Импорт реестров банка и кассы с карантином ошибочных строк, разнесение по лицевым счетам, сальдо по услугам и периодам."
-          />
-        ),
-      },
-      {
-        path: 'debtors',
-        element: (
-          <StubPage
-            title="Должники и пени"
-            phase="Ф5"
-            details="Задолженность по срокам, начисление пеней по ст. 155 ЖК РФ с учетом частичных оплат, моратории и рассрочки."
-          />
-        ),
-      },
+      { path: 'payments', element: <PaymentsPage /> },
+      { path: 'debtors', element: <DebtorsPage /> },
       {
         path: 'legal',
         element: (
@@ -51,16 +36,7 @@ export const router = createHashRouter([
           />
         ),
       },
-      {
-        path: 'documents',
-        element: (
-          <StubPage
-            title="Документы"
-            phase="Ф4"
-            details="Квитанции по примерной форме Минстроя с QR-кодом ГОСТ Р 56042-2014, ведомости в Excel, выгрузки для ГИС ЖКХ и 1С."
-          />
-        ),
-      },
+      { path: 'documents', element: <DocumentsPage /> },
     ],
   },
   // Квитанция — печатная страница вне операторского layout

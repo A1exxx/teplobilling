@@ -1,11 +1,12 @@
-import { CalculatorOutlined, DatabaseOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { Alert, App, Button, Card, Col, Descriptions, Row, Skeleton, Statistic, Tag } from 'antd'
+import { CalculatorOutlined, DatabaseOutlined, LockOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { Alert, App, Button, Card, Col, Descriptions, Popconfirm, Row, Skeleton, Statistic, Tag } from 'antd'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { seedDemo } from '@teplobilling/db'
 import { getDb, type DbStatus } from '../db/client'
 import { getStats, type Stats } from '../db/queries'
 import { calcPeriod } from '../services/calc'
+import { closePeriod } from '../services/payments'
 import { MONTH_LABELS } from '../labels'
 
 type DbState = { kind: 'loading' } | { kind: 'ready'; status: DbStatus } | { kind: 'error'; message: string }
@@ -157,6 +158,32 @@ export function PeriodMonitor() {
                 </Button>
                 <Button onClick={() => navigate('/readings')}>Ввод показаний</Button>
                 <Button onClick={() => navigate('/accounts')}>Реестр ЛС</Button>
+                {calculated && (
+                  <Popconfirm
+                    title="Закрыть период?"
+                    description="Будет создан снапшот сальдо по каждому ЛС; правки закрытого периода невозможны. Откроется следующий месяц."
+                    okText="Закрыть"
+                    cancelText="Отмена"
+                    onConfirm={() => {
+                      void (async () => {
+                        try {
+                          const { pg } = await getDb()
+                          const result = await closePeriod(pg)
+                          message.success(
+                            `Период ${MONTH_LABELS[result.closed.month]} ${result.closed.year} закрыт (${result.snapshots} снапшотов сальдо). Открыт ${MONTH_LABELS[result.next.month]} ${result.next.year}.`,
+                          )
+                          await refresh()
+                        } catch (error) {
+                          message.error(String(error))
+                        }
+                      })()
+                    }}
+                  >
+                    <Button icon={<LockOutlined />} data-testid="close-period-button">
+                      Закрыть период
+                    </Button>
+                  </Popconfirm>
+                )}
                 <Tag color="success" style={{ alignSelf: 'center' }} data-testid="seeded-tag">
                   демо-данные загружены
                 </Tag>

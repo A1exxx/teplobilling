@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getDb } from '../db/client'
 import { getAccountAccrual, getAccountCard, type AccountCard, type AccrualView } from '../db/queries'
+import { getAccountMoney } from '../services/payments'
 import {
   COMPONENT_LABELS,
   HEATING_MODE_LABELS,
@@ -126,6 +127,80 @@ function AccrualsTab({ accountId }: { accountId: string }) {
         Разверните строку, чтобы увидеть след расчета: формула, входные данные и шаги — основа ответа
         на любой вопрос абонента «откуда эта цифра».
       </Typography.Paragraph>
+    </div>
+  )
+}
+
+function MoneyTab({ accountId }: { accountId: string }) {
+  const [money, setMoney] = useState<Awaited<ReturnType<typeof getAccountMoney>> | null>(null)
+
+  useEffect(() => {
+    void (async () => {
+      const { pg } = await getDb()
+      setMoney(await getAccountMoney(pg, accountId))
+    })()
+  }, [accountId])
+
+  if (!money) return <Skeleton active paragraph={{ rows: 4 }} />
+  const balance = Number(money.balance)
+
+  return (
+    <div data-testid="money-tab">
+      <div style={{ display: 'flex', gap: 16, alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap' }}>
+        <Typography.Text strong style={{ fontSize: 16 }} data-testid="balance-value">
+          Сальдо:{' '}
+          <span style={{ fontVariantNumeric: 'tabular-nums', color: balance > 0 ? '#b42318' : '#0f766e' }}>
+            {balance.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+          </span>
+        </Typography.Text>
+        {balance > 0 ? <Tag color="error">задолженность</Tag> : <Tag color="success">долга нет</Tag>}
+        {Number(money.penalty.total) > 0 && (
+          <Typography.Text type="danger">
+            Пени на сегодня: {money.penalty.total} ₽ (ставка {money.penalty.ratePercent}%)
+          </Typography.Text>
+        )}
+      </div>
+      <Table
+        size="small"
+        rowKey="periodLabel"
+        pagination={false}
+        dataSource={money.claims}
+        columns={[
+          { title: 'Период', dataIndex: 'periodLabel', width: 100 },
+          { title: 'Срок оплаты', dataIndex: 'dueDate', width: 120 },
+          { title: 'Начислено, ₽', dataIndex: 'accrued', align: 'right' },
+          { title: 'Оплачено (ФИФО), ₽', dataIndex: 'paid', align: 'right' },
+          {
+            title: 'Остаток, ₽',
+            dataIndex: 'outstanding',
+            align: 'right',
+            render: (v: string) =>
+              Number(v) > 0 ? <Typography.Text strong type="danger">{v}</Typography.Text> : v,
+          },
+        ]}
+      />
+      <Typography.Title level={5} style={{ marginTop: 16 }}>
+        Оплаты
+      </Typography.Title>
+      <Table
+        size="small"
+        rowKey={(r) => `${r.pay_date}-${r.amount}-${r.doc_no ?? ''}`}
+        pagination={false}
+        dataSource={money.payments}
+        locale={{ emptyText: 'Оплат не было' }}
+        columns={[
+          { title: 'Дата', dataIndex: 'pay_date', width: 120 },
+          {
+            title: 'Сумма, ₽',
+            dataIndex: 'amount',
+            align: 'right',
+            width: 130,
+            render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{Number(v).toFixed(2)}</span>,
+          },
+          { title: 'Источник', dataIndex: 'source', width: 120 },
+          { title: 'Документ', dataIndex: 'doc_no' },
+        ]}
+      />
     </div>
   )
 }
@@ -282,11 +357,7 @@ export function AccountCardPage() {
                 {
                   key: 'payments',
                   label: 'Платежи и сальдо',
-                  children: (
-                    <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                      Оплаты, задолженность и пени появятся в фазе Ф5.
-                    </Typography.Paragraph>
-                  ),
+                  children: <MoneyTab accountId={a.id} />,
                 },
               ]}
             />
