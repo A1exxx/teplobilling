@@ -8,6 +8,13 @@
       "when": 1784312137846,
       "tag": "0000_melted_sister_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784335302298,
+      "tag": "0001_lonely_living_lightning",
+      "breakpoints": true
     }
   ]
 }

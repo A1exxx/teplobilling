@@ -22,15 +22,52 @@ describe('runMigrations на чистой PGlite', () => {
     for (const expected of [
       '_migrations',
       'tenant',
+      'municipality',
       'settlement',
       'street',
       'building',
       'premise',
       'account',
+      'customer',
+      'account_customer',
+      'account_resident',
+      'meter',
+      'meter_reading',
+      'tariff',
+      'norm',
       'billing_period',
     ]) {
       expect(tables).toContain(expected)
     }
+    await pg.close()
+  })
+
+  it('partial unique: два принятых показания одного счетчика за период невозможны', async () => {
+    const pg = new PGlite()
+    await runMigrations(pg, loadMigrations())
+    await pg.exec(`
+      INSERT INTO tenant (id, name) VALUES ('018f0000-0000-7000-8000-00000000000a', 'МУП Тест');
+      INSERT INTO billing_period (id, tenant_id, year, month)
+        VALUES ('018f0000-0000-7000-8000-00000000000b', '018f0000-0000-7000-8000-00000000000a', 2026, 7);
+      INSERT INTO meter (id, tenant_id, kind, serial_no, digits)
+        VALUES ('018f0000-0000-7000-8000-00000000000c', '018f0000-0000-7000-8000-00000000000a', 'ipu_hw', 'X-1', 5);
+      INSERT INTO meter_reading (id, tenant_id, meter_id, period_id, value, source, status)
+        VALUES ('018f0000-0000-7000-8000-00000000000d', '018f0000-0000-7000-8000-00000000000a',
+                '018f0000-0000-7000-8000-00000000000c', '018f0000-0000-7000-8000-00000000000b', 123.456, 'operator', 'accepted');
+    `)
+    await expect(
+      pg.exec(`
+        INSERT INTO meter_reading (id, tenant_id, meter_id, period_id, value, source, status)
+          VALUES ('018f0000-0000-7000-8000-00000000000e', '018f0000-0000-7000-8000-00000000000a',
+                  '018f0000-0000-7000-8000-00000000000c', '018f0000-0000-7000-8000-00000000000b', 124, 'operator', 'accepted');
+      `),
+    ).rejects.toThrow(/duplicate key|unique/i)
+    // отклоненное показание при этом сосуществует спокойно
+    await pg.exec(`
+      INSERT INTO meter_reading (id, tenant_id, meter_id, period_id, value, source, status)
+        VALUES ('018f0000-0000-7000-8000-00000000000f', '018f0000-0000-7000-8000-00000000000a',
+                '018f0000-0000-7000-8000-00000000000c', '018f0000-0000-7000-8000-00000000000b', 125, 'operator', 'rejected');
+    `)
     await pg.close()
   })
 
