@@ -1,0 +1,26 @@
+{
+  "name": "@teplobilling/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Схема БД (Drizzle) и миграции — одна схема для PGlite (браузер, v1) и PostgreSQL (VPS, v2)",
+  "exports": {
+    ".": "./src/index.ts",
+    "./migrations": "./src/migrations-manifest.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.14",
+    "drizzle-orm": "^0.44.7",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
