@@ -1,10 +1,11 @@
-import { DatabaseOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { CalculatorOutlined, DatabaseOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { Alert, App, Button, Card, Col, Descriptions, Row, Skeleton, Statistic, Tag } from 'antd'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { seedDemo } from '@teplobilling/db'
 import { getDb, type DbStatus } from '../db/client'
 import { getStats, type Stats } from '../db/queries'
+import { calcPeriod } from '../services/calc'
 import { MONTH_LABELS } from '../labels'
 
 type DbState = { kind: 'loading' } | { kind: 'ready'; status: DbStatus } | { kind: 'error'; message: string }
@@ -15,6 +16,7 @@ export function PeriodMonitor() {
   const [db, setDb] = useState<DbState>({ kind: 'loading' })
   const [stats, setStats] = useState<Stats | null>(null)
   const [seeding, setSeeding] = useState(false)
+  const [calculating, setCalculating] = useState(false)
 
   const refresh = useCallback(async () => {
     const { pg } = await getDb()
@@ -53,7 +55,26 @@ export function PeriodMonitor() {
     }
   }
 
+  const calcNow = async () => {
+    setCalculating(true)
+    try {
+      const { pg } = await getDb()
+      const result = await calcPeriod(pg)
+      const rub = Number(result.totalAmount).toLocaleString('ru-RU', { minimumFractionDigits: 2 })
+      message.success(
+        `Рассчитано ${result.accounts} ЛС, ${result.linesTotal} строк, начислено ${rub} ₽` +
+          (result.errors.length > 0 ? `, ошибок: ${result.errors.length}` : ''),
+      )
+      await refresh()
+    } catch (error) {
+      message.error(String(error))
+    } finally {
+      setCalculating(false)
+    }
+  }
+
   const seeded = (stats?.accounts ?? 0) > 0
+  const calculated = stats?.openPeriod?.status === 'calculated'
 
   return (
     <Row gutter={[16, 16]}>
@@ -75,8 +96,13 @@ export function PeriodMonitor() {
               <ThunderboltOutlined style={{ marginInlineEnd: 8 }} />
               Расчетный период
               {stats?.openPeriod && (
-                <Tag color="processing" style={{ marginInlineStart: 12 }}>
-                  {MONTH_LABELS[stats.openPeriod.month]} {stats.openPeriod.year} · открыт
+                <Tag
+                  color={calculated ? 'success' : 'processing'}
+                  style={{ marginInlineStart: 12 }}
+                  data-testid="period-status"
+                >
+                  {MONTH_LABELS[stats.openPeriod.month]} {stats.openPeriod.year} ·{' '}
+                  {calculated ? 'рассчитан' : 'открыт'}
                 </Tag>
               )}
             </>
@@ -97,7 +123,17 @@ export function PeriodMonitor() {
               />
             </Col>
           </Row>
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          {stats?.accruedTotal && (
+            <Statistic
+              title="Начислено за период, ₽"
+              value={Number(stats.accruedTotal)}
+              precision={2}
+              style={{ marginTop: 12 }}
+              valueStyle={{ fontVariantNumeric: 'tabular-nums', color: '#0f766e' }}
+              data-testid="stat-accrued"
+            />
+          )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
             {!seeded ? (
               <Button
                 type="primary"
@@ -110,10 +146,20 @@ export function PeriodMonitor() {
               </Button>
             ) : (
               <>
+                <Button
+                  type="primary"
+                  icon={<CalculatorOutlined />}
+                  loading={calculating}
+                  data-testid="calc-period-button"
+                  onClick={() => void calcNow()}
+                >
+                  {calculated ? 'Пересчитать период' : 'Рассчитать период'}
+                </Button>
+                <Button onClick={() => navigate('/readings')}>Ввод показаний</Button>
+                <Button onClick={() => navigate('/accounts')}>Реестр ЛС</Button>
                 <Tag color="success" style={{ alignSelf: 'center' }} data-testid="seeded-tag">
                   демо-данные загружены
                 </Tag>
-                <Button onClick={() => navigate('/accounts')}>К реестру лицевых счетов</Button>
               </>
             )}
           </div>

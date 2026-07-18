@@ -132,6 +132,7 @@ export interface BuildingRow {
   hw_system: string
   heating_payment_mode: string
   has_odpu: boolean
+  has_ipu: boolean
   premises: number
   accounts: number
 }
@@ -142,6 +143,8 @@ export async function listBuildings(pg: PGlite): Promise<BuildingRow[]> {
             b.total_premises_area, b.common_area, b.hw_system, b.heating_payment_mode,
             EXISTS (SELECT 1 FROM meter m WHERE m.building_id = b.id AND m.kind = 'odpu_heat'
                     AND m.status <> 'removed') AS has_odpu,
+            EXISTS (SELECT 1 FROM meter m JOIN premise pp ON pp.id = m.premise_id
+                    WHERE pp.building_id = b.id AND m.kind = 'ipu_hw' AND m.status <> 'removed') AS has_ipu,
             (SELECT count(*)::int FROM premise p WHERE p.building_id = b.id) AS premises,
             (SELECT count(*)::int FROM account a JOIN premise p ON p.id = a.premise_id
               WHERE p.building_id = b.id AND a.date_close IS NULL) AS accounts
@@ -189,27 +192,98 @@ export async function listNorms(pg: PGlite): Promise<NormRow[]> {
   return rows
 }
 
+export interface AccrualView {
+  accrualId: string
+  totalAmount: string
+  periodYear: number
+  periodMonth: number
+  lines: Array<{
+    id: string
+    service: string
+    component: string
+    method: string
+    line_kind: string
+    date_from: string
+    date_to: string
+    volume: string
+    unit: string
+    rate: string
+    amount: string
+    trace: Array<{ rule: string; detail: string; values?: Record<string, string> }>
+  }>
+}
+
+/** Актуальное начисление ЛС за последний рассчитанный период, со строками и трейсом. */
+export async function getAccountAccrual(pg: PGlite, accountId: string): Promise<AccrualView | null> {
+  const head = await pg.query<{ id: string; total_amount: string; year: number; month: number }>(
+    `SELECT ac.id, ac.total_amount::text AS total_amount, bp.year, bp.month
+     FROM accrual ac JOIN billing_period bp ON bp.id = ac.period_id
+     WHERE ac.account_id = $1 AND ac.is_current
+     ORDER BY bp.year DESC, bp.month DESC LIMIT 1`,
+    [accountId],
+  )
+  const accrual = head.rows[0]
+  if (!accrual) return null
+  const lines = await pg.query<AccrualView['lines'][number]>(
+    `SELECT id, service, component, method, line_kind,
+            date_from::text AS date_from, date_to::text AS date_to,
+            volume::text AS volume, unit, rate::text AS rate, amount::text AS amount, trace
+     FROM accrual_line WHERE accrual_id = $1 ORDER BY service, component, date_from, line_kind`,
+    [accrual.id],
+  )
+  return {
+    accrualId: accrual.id,
+    totalAmount: accrual.total_amount,
+    periodYear: accrual.year,
+    periodMonth: accrual.month,
+    lines: lines.rows,
+  }
+}
+
+export interface TenantRequisites {
+  name: string
+  inn: string | null
+  kpp: string | null
+  legal_address: string | null
+  bank_name: string | null
+  bic: string | null
+  corr_account: string | null
+  settlement_account: string | null
+  phone: string | null
+}
+
+export async function getTenantRequisites(pg: PGlite): Promise<TenantRequisites | null> {
+  const { rows } = await pg.query<TenantRequisites>(
+    `SELECT name, inn, kpp, legal_address, bank_name, bic, corr_account, settlement_account, phone
+     FROM tenant LIMIT 1`,
+  )
+  return rows[0] ?? null
+}
+
 export interface Stats {
   accounts: number
   buildings: number
-  openPeriod: { year: number; month: number } | null
+  openPeriod: { year: number; month: number; status: string } | null
   readingsEntered: number
   activeIpu: number
+  accruedTotal: string | null
 }
 
 export async function getStats(pg: PGlite): Promise<Stats> {
   const [acc, bld, period] = await Promise.all([
     pg.query<{ n: number }>(`SELECT count(*)::int AS n FROM account WHERE date_close IS NULL`),
     pg.query<{ n: number }>(`SELECT count(*)::int AS n FROM building`),
-    pg.query<{ id: string; year: number; month: number }>(
-      `SELECT id, year, month FROM billing_period WHERE status = 'open' ORDER BY year, month LIMIT 1`,
+    pg.query<{ id: string; year: number; month: number; status: string }>(
+      `SELECT id, year, month, status FROM billing_period
+       WHERE status IN ('open','calculated') ORDER BY year, month LIMIT 1`,
     ),
   ])
   const open = period.rows[0] ?? null
   let readingsEntered = 0
   let activeIpu = 0
+  let accruedTotal: string | null = null
   if (open) {
-    const [entered, ipu] = await Promise.all([
+    const [entered, ipu, accrued] = await Promise.all([
       pg.query<{ n: number }>(
         `SELECT count(*)::int AS n FROM meter_reading r
          JOIN meter m ON m.id = r.meter_id
@@ -219,15 +293,21 @@ export async function getStats(pg: PGlite): Promise<Stats> {
       pg.query<{ n: number }>(
         `SELECT count(*)::int AS n FROM meter WHERE kind = 'ipu_hw' AND status = 'active'`,
       ),
+      pg.query<{ total: string | null }>(
+        `SELECT sum(total_amount)::text AS total FROM accrual WHERE period_id = $1 AND is_current`,
+        [open.id],
+      ),
     ])
     readingsEntered = entered.rows[0]?.n ?? 0
     activeIpu = ipu.rows[0]?.n ?? 0
+    accruedTotal = accrued.rows[0]?.total ?? null
   }
   return {
     accounts: acc.rows[0]?.n ?? 0,
     buildings: bld.rows[0]?.n ?? 0,
-    openPeriod: open ? { year: open.year, month: open.month } : null,
+    openPeriod: open ? { year: open.year, month: open.month, status: open.status } : null,
     readingsEntered,
     activeIpu,
+    accruedTotal,
   }
 }

@@ -49,6 +49,26 @@ export const METER_STATUS_LABELS: Record<string, string> = {
   removed: 'снят',
 }
 
+export const METHOD_LABELS: Record<string, string> = {
+  'H-01_norm_season': 'Отопление: норматив (в отопительный период), ф.2',
+  'H-02_norm_uniform': 'Отопление: норматив × K (равномерно за год), ф.2(1)',
+  'H-04_odpu_share': 'Отопление: доля от ОДПУ по площади, ф.3',
+  'H-00_off_season': 'Отопление: вне отопительного периода',
+  'W-01_meter': 'ГВС: по показаниям ИПУ',
+  'W-02_norm_uplift': 'ГВС: норматив × Кпов 1,5 (ИПУ нет)',
+  'W-03_norm': 'ГВС: норматив (техвозможности установки ИПУ нет)',
+  'W-04_no_readings_norm': 'ГВС: показания не переданы — норматив (истории мало)',
+  'W-04_no_readings_avg': 'ГВС: показания не переданы — среднемесячный (п.59)',
+  'W-05_verification_expired': 'ГВС: истекла поверка — норматив × Кпов (п.59-60)',
+  'W-07_by_owners': 'ГВС: по числу собственников (п.56(2))',
+}
+
+export const LINE_KIND_LABELS: Record<string, string> = {
+  accrual: 'начисление',
+  uplift: 'повышающий коэффициент',
+  vat: 'НДС',
+}
+
 export const MONTH_LABELS = [
   '',
   'Январь',

@@ -4,6 +4,8 @@ import { AccountCardPage } from './pages/AccountCardPage'
 import { AccountsPage } from './pages/AccountsPage'
 import { BuildingsPage } from './pages/BuildingsPage'
 import { PeriodMonitor } from './pages/PeriodMonitor'
+import { ReadingsPage } from './pages/ReadingsPage'
+import { ReceiptPage } from './pages/ReceiptPage'
 import { StubPage } from './pages/StubPage'
 import { TariffsPage } from './pages/TariffsPage'
 
@@ -18,16 +20,7 @@ export const router = createHashRouter([
       { path: 'accounts/:id', element: <AccountCardPage /> },
       { path: 'buildings', element: <BuildingsPage /> },
       { path: 'tariffs', element: <TariffsPage /> },
-      {
-        path: 'readings',
-        element: (
-          <StubPage
-            title="Ввод показаний"
-            phase="Ф3"
-            details="Excel-подобная таблица по дому или улице: вставка диапазона из буфера, контроль «не меньше предыдущего», подсветка аномального расхода."
-          />
-        ),
-      },
+      { path: 'readings', element: <ReadingsPage /> },
       {
         path: 'payments',
         element: (
@@ -70,4 +63,6 @@ export const router = createHashRouter([
       },
     ],
   },
+  // Квитанция — печатная страница вне операторского layout
+  { path: '/receipt/:id', element: <ReceiptPage /> },
 ])

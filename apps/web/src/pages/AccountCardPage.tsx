@@ -1,10 +1,134 @@
-import { ArrowLeftOutlined } from '@ant-design/icons'
-import { Button, Card, Col, Descriptions, Result, Row, Skeleton, Table, Tabs, Tag, Typography } from 'antd'
+import { ArrowLeftOutlined, PrinterOutlined } from '@ant-design/icons'
+import { Button, Card, Col, Descriptions, Empty, List, Result, Row, Skeleton, Table, Tabs, Tag, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getDb } from '../db/client'
-import { getAccountCard, type AccountCard } from '../db/queries'
-import { HEATING_MODE_LABELS, HW_SYSTEM_LABELS, METER_STATUS_LABELS } from '../labels'
+import { getAccountAccrual, getAccountCard, type AccountCard, type AccrualView } from '../db/queries'
+import {
+  COMPONENT_LABELS,
+  HEATING_MODE_LABELS,
+  HW_SYSTEM_LABELS,
+  LINE_KIND_LABELS,
+  METER_STATUS_LABELS,
+  METHOD_LABELS,
+  MONTH_LABELS,
+  SERVICE_LABELS,
+} from '../labels'
+
+function AccrualsTab({ accountId }: { accountId: string }) {
+  const navigate = useNavigate()
+  const [view, setView] = useState<AccrualView | null | 'loading'>('loading')
+
+  useEffect(() => {
+    void (async () => {
+      const { pg } = await getDb()
+      setView(await getAccountAccrual(pg, accountId))
+    })()
+  }, [accountId])
+
+  if (view === 'loading') return <Skeleton active paragraph={{ rows: 4 }} />
+  if (!view)
+    return (
+      <Empty description="Начислений еще нет — запустите расчет периода на «Мониторе периода»" />
+    )
+
+  return (
+    <div data-testid="accruals-tab">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+        <Typography.Text strong>
+          {MONTH_LABELS[view.periodMonth]} {view.periodYear}
+        </Typography.Text>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+          <Typography.Text strong style={{ fontSize: 16, fontVariantNumeric: 'tabular-nums' }} data-testid="accrual-total">
+            Итого: {Number(view.totalAmount).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽
+          </Typography.Text>
+          <Button
+            icon={<PrinterOutlined />}
+            onClick={() => navigate(`/receipt/${accountId}`)}
+            data-testid="open-receipt"
+          >
+            Квитанция
+          </Button>
+        </div>
+      </div>
+      <Table
+        size="small"
+        rowKey="id"
+        pagination={false}
+        dataSource={view.lines}
+        data-testid="accrual-lines"
+        expandable={{
+          rowExpandable: (record) => record.trace.length > 0,
+          expandedRowRender: (record) => (
+            <List
+              size="small"
+              dataSource={record.trace}
+              renderItem={(step) => (
+                <List.Item style={{ paddingBlock: 4 }}>
+                  <Typography.Text>
+                    <Typography.Text strong>{step.rule}.</Typography.Text> {step.detail}
+                    {step.values && (
+                      <Typography.Text type="secondary">
+                        {' '}
+                        {Object.entries(step.values)
+                          .map(([k, v]) => `${k} = ${v}`)
+                          .join('; ')}
+                      </Typography.Text>
+                    )}
+                  </Typography.Text>
+                </List.Item>
+              )}
+            />
+          ),
+        }}
+        columns={[
+          {
+            title: 'Услуга',
+            render: (_, r) =>
+              `${SERVICE_LABELS[r.service] ?? r.service}${r.component !== 'single' ? ` (${COMPONENT_LABELS[r.component]})` : ''}`,
+          },
+          { title: 'Вид', dataIndex: 'line_kind', width: 110, render: (v: string) => LINE_KIND_LABELS[v] ?? v },
+          { title: 'Способ расчета', dataIndex: 'method', render: (v: string) => METHOD_LABELS[v] ?? v },
+          {
+            title: 'Объем',
+            align: 'right',
+            width: 130,
+            render: (_, r) =>
+              Number(r.volume) > 0 ? (
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {Number(r.volume).toFixed(4)} {r.unit === 'Gcal' ? 'Гкал' : 'м³'}
+                </span>
+              ) : (
+                '—'
+              ),
+          },
+          {
+            title: 'Тариф, ₽',
+            dataIndex: 'rate',
+            align: 'right',
+            width: 110,
+            render: (v: string) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{Number(v).toFixed(2)}</span>,
+          },
+          {
+            title: 'Сумма, ₽',
+            dataIndex: 'amount',
+            align: 'right',
+            width: 110,
+            render: (v: string) => (
+              <Typography.Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {Number(v).toFixed(2)}
+              </Typography.Text>
+            ),
+          },
+        ]}
+      />
+      <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
+        Разверните строку, чтобы увидеть след расчета: формула, входные данные и шаги — основа ответа
+        на любой вопрос абонента «откуда эта цифра».
+      </Typography.Paragraph>
+    </div>
+  )
+}
 
 export function AccountCardPage() {
   const { id } = useParams<{ id: string }>()
@@ -153,11 +277,7 @@ export function AccountCardPage() {
                 {
                   key: 'accruals',
                   label: 'Начисления',
-                  children: (
-                    <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                      История начислений со следом расчета «объяснить начисление» появится в фазе Ф2.
-                    </Typography.Paragraph>
-                  ),
+                  children: <AccrualsTab accountId={a.id} />,
                 },
                 {
                   key: 'payments',
