@@ -1,0 +1,30 @@
+{
+  "name": "@teplobilling/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.1.0",
+    "@electric-sql/pglite": "^0.3.14",
+    "@teplobilling/billing-core": "workspace:*",
+    "@teplobilling/db": "workspace:*",
+    "antd": "^6.1.1",
+    "dayjs": "^1.11.19",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-router-dom": "^7.13.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.4"
+  }
+}
