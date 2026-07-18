@@ -1,7 +1,11 @@
 import { createHashRouter } from 'react-router-dom'
 import { AppLayout } from './layout/AppLayout'
+import { AccountCardPage } from './pages/AccountCardPage'
+import { AccountsPage } from './pages/AccountsPage'
+import { BuildingsPage } from './pages/BuildingsPage'
 import { PeriodMonitor } from './pages/PeriodMonitor'
 import { StubPage } from './pages/StubPage'
+import { TariffsPage } from './pages/TariffsPage'
 
 // Hash-роутинг: GitHub Pages не умеет SPA-fallback для глубоких ссылок
 export const router = createHashRouter([
@@ -10,16 +14,10 @@ export const router = createHashRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <PeriodMonitor /> },
-      {
-        path: 'accounts',
-        element: (
-          <StubPage
-            title="Реестр лицевых счетов"
-            phase="Ф1"
-            details="Поиск и фильтры по адресу и номеру ЛС, карточка счета с историей начислений, показаний и платежей, раскрытие следа расчета «объяснить начисление»."
-          />
-        ),
-      },
+      { path: 'accounts', element: <AccountsPage /> },
+      { path: 'accounts/:id', element: <AccountCardPage /> },
+      { path: 'buildings', element: <BuildingsPage /> },
+      { path: 'tariffs', element: <TariffsPage /> },
       {
         path: 'readings',
         element: (
@@ -27,26 +25,6 @@ export const router = createHashRouter([
             title="Ввод показаний"
             phase="Ф3"
             details="Excel-подобная таблица по дому или улице: вставка диапазона из буфера, контроль «не меньше предыдущего», подсветка аномального расхода."
-          />
-        ),
-      },
-      {
-        path: 'buildings',
-        element: (
-          <StubPage
-            title="Дома"
-            phase="Ф1"
-            details="Паспорт дома: площади, этажность, система ГВС (открытая/закрытая), общедомовые приборы, способ оплаты отопления, отопительные сезоны."
-          />
-        ),
-      },
-      {
-        path: 'tariffs',
-        element: (
-          <StubPage
-            title="Тарифы и нормативы"
-            phase="Ф2"
-            details="Версии тарифов и нормативов с датами действия на таймлайне: отопление, компоненты ГВС, нормативы потребления и подогрева, ключевая ставка для пеней."
           />
         ),
       },

@@ -1,19 +1,33 @@
 import { DatabaseOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { Alert, App, Button, Card, Col, Descriptions, Row, Skeleton, Statistic } from 'antd'
-import { useEffect, useState } from 'react'
+import { Alert, App, Button, Card, Col, Descriptions, Row, Skeleton, Statistic, Tag } from 'antd'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { seedDemo } from '@teplobilling/db'
 import { getDb, type DbStatus } from '../db/client'
+import { getStats, type Stats } from '../db/queries'
+import { MONTH_LABELS } from '../labels'
 
 type DbState = { kind: 'loading' } | { kind: 'ready'; status: DbStatus } | { kind: 'error'; message: string }
 
 export function PeriodMonitor() {
   const { message } = App.useApp()
+  const navigate = useNavigate()
   const [db, setDb] = useState<DbState>({ kind: 'loading' })
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [seeding, setSeeding] = useState(false)
+
+  const refresh = useCallback(async () => {
+    const { pg } = await getDb()
+    setStats(await getStats(pg))
+  }, [])
 
   useEffect(() => {
     let cancelled = false
     getDb()
-      .then(({ status }) => {
-        if (!cancelled) setDb({ kind: 'ready', status })
+      .then(async ({ status, pg }) => {
+        if (cancelled) return
+        setDb({ kind: 'ready', status })
+        setStats(await getStats(pg))
       })
       .catch((error: unknown) => {
         if (!cancelled) setDb({ kind: 'error', message: String(error) })
@@ -23,15 +37,87 @@ export function PeriodMonitor() {
     }
   }, [])
 
+  const seedNow = async () => {
+    setSeeding(true)
+    try {
+      const { pg } = await getDb()
+      const summary = await seedDemo(pg)
+      message.success(
+        `Демо-данные загружены: ${summary.buildings} домов, ${summary.accounts} лицевых счетов`,
+      )
+      await refresh()
+    } catch (error) {
+      message.error(String(error))
+    } finally {
+      setSeeding(false)
+    }
+  }
+
+  const seeded = (stats?.accounts ?? 0) > 0
+
   return (
     <Row gutter={[16, 16]}>
-      <Col span={24}>
-        <Alert
-          type="info"
-          showIcon
-          title="Каркас продукта (фаза Ф0)"
-          description="Это первая живая сборка: база данных уже работает прямо в браузере, разделы наполняются по фазам плана. Демо-данные и расчет появятся в Ф1–Ф2."
-        />
+      {!seeded && (
+        <Col span={24}>
+          <Alert
+            type="info"
+            showIcon
+            title="База пуста — начните с демо-данных"
+            description="Кнопка ниже наполнит базу демонстрационным контуром: город Красноозёрск, 10 домов с тремя схемами приборов учета, ~170 лицевых счетов, двухкомпонентные тарифы ГВС. Все данные останутся в вашем браузере."
+          />
+        </Col>
+      )}
+
+      <Col xs={24} lg={12}>
+        <Card
+          title={
+            <>
+              <ThunderboltOutlined style={{ marginInlineEnd: 8 }} />
+              Расчетный период
+              {stats?.openPeriod && (
+                <Tag color="processing" style={{ marginInlineStart: 12 }}>
+                  {MONTH_LABELS[stats.openPeriod.month]} {stats.openPeriod.year} · открыт
+                </Tag>
+              )}
+            </>
+          }
+        >
+          <Row gutter={16}>
+            <Col span={8}>
+              <Statistic title="Лицевых счетов" value={stats?.accounts ?? 0} data-testid="stat-accounts" />
+            </Col>
+            <Col span={8}>
+              <Statistic title="Домов" value={stats?.buildings ?? 0} />
+            </Col>
+            <Col span={8}>
+              <Statistic
+                title="Показания ИПУ за период"
+                value={stats?.readingsEntered ?? 0}
+                suffix={`/ ${stats?.activeIpu ?? 0}`}
+              />
+            </Col>
+          </Row>
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            {!seeded ? (
+              <Button
+                type="primary"
+                loading={seeding}
+                disabled={db.kind !== 'ready'}
+                data-testid="seed-demo-button"
+                onClick={() => void seedNow()}
+              >
+                Наполнить демо-данными
+              </Button>
+            ) : (
+              <>
+                <Tag color="success" style={{ alignSelf: 'center' }} data-testid="seeded-tag">
+                  демо-данные загружены
+                </Tag>
+                <Button onClick={() => navigate('/accounts')}>К реестру лицевых счетов</Button>
+              </>
+            )}
+          </div>
+        </Card>
       </Col>
 
       <Col xs={24} lg={12}>
@@ -68,40 +154,6 @@ export function PeriodMonitor() {
               ]}
             />
           )}
-        </Card>
-      </Col>
-
-      <Col xs={24} lg={12}>
-        <Card
-          title={
-            <>
-              <ThunderboltOutlined style={{ marginInlineEnd: 8 }} />
-              Расчетный период
-            </>
-          }
-        >
-          <Row gutter={16}>
-            <Col span={8}>
-              <Statistic title="Лицевых счетов" value={0} style={{ fontVariantNumeric: 'tabular-nums' }} />
-            </Col>
-            <Col span={8}>
-              <Statistic title="Показаний введено" value={0} suffix="/ 0" />
-            </Col>
-            <Col span={8}>
-              <Statistic title="Начислено, ₽" value={0} precision={2} />
-            </Col>
-          </Row>
-          <Button
-            type="primary"
-            style={{ marginTop: 16 }}
-            data-testid="seed-demo-button"
-            disabled={db.kind !== 'ready'}
-            onClick={() =>
-              message.info('Демо-данные (10 домов, 3 схемы приборов учета) появятся в фазе Ф1')
-            }
-          >
-            Наполнить демо-данными
-          </Button>
         </Card>
       </Col>
     </Row>
