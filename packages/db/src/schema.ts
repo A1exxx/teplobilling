@@ -294,6 +294,36 @@ export const accrualLine = pgTable('accrual_line', {
   trace: jsonb('trace').notNull().default(sql`'[]'::jsonb`),
 })
 
+export const paymentSource = pgEnum('payment_source', ['demo', 'csv', 'manual'])
+
+export const payment = pgTable('payment', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenant.id),
+  accountId: uuid('account_id').notNull().references(() => account.id),
+  amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+  payDate: date('pay_date').notNull(),
+  docNo: text('doc_no'),
+  source: paymentSource('source').notNull().default('manual'),
+  comment: text('comment'),
+  createdAt: createdAt(),
+})
+
+export const accountBalance = pgTable(
+  'account_balance',
+  {
+    id: id(),
+    tenantId: uuid('tenant_id').notNull().references(() => tenant.id),
+    accountId: uuid('account_id').notNull().references(() => account.id),
+    periodId: uuid('period_id').notNull().references(() => billingPeriod.id),
+    opening: numeric('opening', { precision: 14, scale: 2 }).notNull().default('0'),
+    accrued: numeric('accrued', { precision: 14, scale: 2 }).notNull().default('0'),
+    paid: numeric('paid', { precision: 14, scale: 2 }).notNull().default('0'),
+    closing: numeric('closing', { precision: 14, scale: 2 }).notNull().default('0'),
+    createdAt: createdAt(),
+  },
+  (table) => [uniqueIndex('account_balance_per_period').on(table.accountId, table.periodId)],
+)
+
 export const norm = pgTable('norm', {
   id: id(),
   tenantId: uuid('tenant_id').notNull().references(() => tenant.id),
