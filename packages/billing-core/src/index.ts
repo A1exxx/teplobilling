@@ -1,5 +1,14 @@
 export { buildGostQrString, rublesToKopecks, type GostQrRequisites } from './gost-qr'
 export { calcAccount } from './engine'
+export {
+  allocatePaymentsFifo,
+  calcPenalty,
+  type ClaimPenalty,
+  type DebtClaim,
+  type PaymentEvent,
+  type PenaltyPolicy,
+  type PenaltyResult,
+} from './penalty'
 export { calcHeating } from './methods/heating'
 export { calcHotWater } from './methods/hot-water'
 export { splitMonth, monthDays } from './splitter'
